@@ -1,11 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import './profile_page.dart';
 import './activity_detail_page.dart';
-import './alerts_page.dart';
-import './explore_page.dart';
-import './help_page.dart';
-import './settings_page.dart';
 import './stats_page.dart';
+import './alerts_page.dart';
+import './settings_page.dart';
+import './help_page.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -13,13 +15,9 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> with TickerProviderStateMixin {
-  int _currentIndex = 0;
   int _selectedCard = -1;
+  List<String> _activities = [];
 
-  // Local list of activities (in-memory)
-  List<String> _activities = ["Stat 1", "Stat 2", "Stat 3", "Stat 4"];
-
-  // Animation-related controllers
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -28,6 +26,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
+    _loadActivities();
 
     _controller = AnimationController(
       vsync: this,
@@ -47,6 +46,26 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     );
   }
 
+  Future<void> _saveActivities() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('activities', jsonEncode(_activities));
+  }
+
+  Future<void> _loadActivities() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? data = prefs.getString('activities');
+
+    if (data != null) {
+      setState(() {
+        _activities = List<String>.from(jsonDecode(data));
+      });
+    } else {
+      setState(() {
+        _activities = ["Stat 1", "Stat 2", "Stat 3", "Stat 4"];
+      });
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -64,8 +83,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        _controller.forward(from: 0); // Restart animation
-
+        _controller.forward(from: 0);
         return Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -81,7 +99,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                 children: [
                   FadeTransition(
                     opacity: _fadeAnimation,
-                    child: Icon(Icons.directions_run, size: 50, color: Colors.blue),
+                    child: Icon(Icons.fitness_center, size: 50, color: Colors.blue),
                   ),
                   SizedBox(height: 16),
                   SlideTransition(
@@ -101,9 +119,8 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                       onPressed: () {
                         String title = _activityController.text.trim();
                         if (title.isNotEmpty) {
-                          setState(() {
-                            _activities.add(title);
-                          });
+                          setState(() => _activities.add(title));
+                          _saveActivities();
                         }
                         Navigator.pop(context);
                       },
@@ -125,22 +142,30 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Dashboard"),
+        backgroundColor: Colors.white,
+        elevation: 4,
+        title: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.blue[100],
+              child: Icon(Icons.person, color: Colors.blue),
+            ),
+            SizedBox(width: 10),
+            Text(
+              "Welcome, Naeem",
+              style: TextStyle(color: Colors.black),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.home),
-            onPressed: () {
-              // Already on Dashboard
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.bar_chart),
+            icon: Icon(Icons.bar_chart, color: Colors.black),
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => StatsPage()));
             },
           ),
           IconButton(
-            icon: Icon(Icons.notifications),
+            icon: Icon(Icons.notifications, color: Colors.black),
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => AlertsPage()));
             },
@@ -150,31 +175,31 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
 
       drawer: Drawer(
         child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(
+            UserAccountsDrawerHeader(
+              accountName: Text("Naeem Ur Rehman"),
+              accountEmail: Text("naeem@example.com"),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, size: 40),
+              ),
               decoration: BoxDecoration(color: Colors.blue),
-              child: Text("Welcome, Naeem", style: TextStyle(color: Colors.white, fontSize: 24)),
             ),
             ListTile(
-              leading: Icon(Icons.person),
+              leading: Icon(Icons.person_outline),
               title: Text("Profile"),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage()));
-              },
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage())),
             ),
             ListTile(
               leading: Icon(Icons.settings),
               title: Text("Settings"),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage()));
-              },
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage())),
             ),
             ListTile(
               leading: Icon(Icons.help_outline),
               title: Text("Help"),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => HelpPage()));
-              },
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HelpPage())),
             ),
           ],
         ),
@@ -189,10 +214,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
           children: List.generate(_activities.length, (index) {
             return GestureDetector(
               onTap: () {
-                setState(() {
-                  _selectedCard = index;
-                });
-
+                setState(() => _selectedCard = index);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -243,29 +265,41 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
           }),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-          BottomNavigationBarItem(icon: Icon(Icons.explore), label: "Explore"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-        ],
-        onTap: (index) {
-          if (index == 0) {
-            setState(() => _currentIndex = index); // Stay on Dashboard
-          } else if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => ExplorePage()));
-          } else if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage()));
-          }
-        },
-      ),
 
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddActivityPanel,
-        child: Icon(Icons.add),
+        backgroundColor: Colors.blue,
+        child: Icon(Icons.add, size: 28),
+        elevation: 8,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+
+      bottomNavigationBar: BottomAppBar(
+        shape: CircularNotchedRectangle(),
+        notchMargin: 8.0,
+        child: Container(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                icon: Icon(Icons.dashboard),
+                onPressed: () {}, // Already on dashboard
+              ),
+              IconButton(
+                icon: Icon(Icons.person),
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage()));
+                },
+              ),
+              IconButton(onPressed:(){
+                Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage()));
+              },
+                  icon: Icon(Icons.explore))
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
